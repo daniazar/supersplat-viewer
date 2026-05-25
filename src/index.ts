@@ -23,6 +23,7 @@ import type { Config, Global } from './types';
 import { initPoster, initUI } from './ui';
 import { Viewer } from './viewer';
 import { initXr } from './xr';
+import { emitViewerProgress } from './post-message-bridge';
 import { version as appVersion } from '../package.json';
 
 const loadGsplat = async (app: AppBase, config: Config, progressCallback: (progress: number) => void) => {
@@ -266,6 +267,7 @@ const main = async (canvas: HTMLCanvasElement, settingsJson: any, config: Config
         config,
         (progress: number) => {
             state.progress = progress;
+            emitViewerProgress(progress);
         }
     );
 

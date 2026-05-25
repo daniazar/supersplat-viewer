@@ -38,6 +38,7 @@ import { InputController } from './input-controller';
 import { MeshDebugOverlay } from './mesh-debug-overlay';
 import { NavCursor } from './nav-cursor';
 import { Picker } from './picker';
+import { emitViewerFirstFrame, initPostMessageBridge } from './post-message-bridge';
 import type { ExperienceSettings, PostEffectSettings } from './settings';
 import type { Config, Global } from './types';
 import { VoxelDebugOverlay } from './voxel-debug-overlay';
@@ -385,6 +386,7 @@ class Viewer {
             }
 
             this.cameraManager = new CameraManager(global, sceneBound, collision);
+            initPostMessageBridge(this);
             applyCamera(this.cameraManager.camera);
 
             if (!config.noui) {
@@ -411,6 +413,7 @@ class Viewer {
 
                             // emit first frame event on window
                             window.firstFrame?.();
+                            emitViewerFirstFrame();
                         });
                     }
                 });
@@ -511,6 +514,7 @@ class Viewer {
 
                             // emit first frame event on window
                             window.firstFrame?.();
+                            emitViewerFirstFrame();
                         });
                     }
 
