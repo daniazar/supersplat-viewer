@@ -68,7 +68,17 @@ const initPostMessageBridge = (viewer: Viewer) => {
                 if (command.fov) {
                     viewer.cameraManager.camera.fov = command.fov;
                 }
-                state.cameraMode = state.walkAllowed ? 'walk' : 'fly';
+                const targetMode = state.walkAllowed ? 'walk' : 'fly';
+                const modeChanged = state.cameraMode !== targetMode;
+                state.cameraMode = targetMode;
+                
+                if (!modeChanged) {
+                    const activeControllerSet = viewer.cameraManager.getController(state.cameraMode) as any;
+                    if (activeControllerSet && typeof activeControllerSet.goto === 'function') {
+                        activeControllerSet.goto(viewer.cameraManager.camera);
+                    }
+                }
+
                 camera.setPosition(command.position[0], command.position[1], command.position[2]);
                 camera.setEulerAngles(viewer.cameraManager.camera.angles);
                 if (command.fov && camera.camera) {
@@ -97,6 +107,12 @@ const initPostMessageBridge = (viewer: Viewer) => {
                 .add(moveRight.mulScalar(command.vector.x))
                 .mulScalar(command.deltaSeconds * 2.5);
                 viewer.cameraManager.camera.position.add(moveDelta);
+                
+                const activeControllerMove = viewer.cameraManager.getController(state.cameraMode) as any;
+                if (activeControllerMove && typeof activeControllerMove.goto === 'function') {
+                    activeControllerMove.goto(viewer.cameraManager.camera);
+                }
+
                 camera.setPosition(viewer.cameraManager.camera.position);
                 app.renderNextFrame = true;
                 emitCameraUpdate(global);
@@ -111,6 +127,12 @@ const initPostMessageBridge = (viewer: Viewer) => {
                     -85,
                     85
                 );
+                
+                const activeControllerRotate = viewer.cameraManager.getController(state.cameraMode) as any;
+                if (activeControllerRotate && typeof activeControllerRotate.goto === 'function') {
+                    activeControllerRotate.goto(viewer.cameraManager.camera);
+                }
+
                 camera.setEulerAngles(viewer.cameraManager.camera.angles);
                 app.renderNextFrame = true;
                 emitCameraUpdate(global);
@@ -120,6 +142,12 @@ const initPostMessageBridge = (viewer: Viewer) => {
                     return;
                 }
                 viewer.cameraManager.camera.fov = clamp(command.fov, 45, 85);
+                
+                const activeControllerFov = viewer.cameraManager.getController(state.cameraMode) as any;
+                if (activeControllerFov) {
+                    activeControllerFov.fov = viewer.cameraManager.camera.fov;
+                }
+
                 if (camera.camera) {
                     camera.camera.fov = viewer.cameraManager.camera.fov;
                 }
@@ -136,6 +164,12 @@ const initPostMessageBridge = (viewer: Viewer) => {
                 }
                 viewer.cameraManager.camera.position.add(moveForward.mulScalar(2));
                 viewer.cameraManager.camera.position.y = Math.max(viewer.cameraManager.camera.position.y, 1.6);
+                
+                const activeControllerTeleport = viewer.cameraManager.getController(state.cameraMode) as any;
+                if (activeControllerTeleport && typeof activeControllerTeleport.goto === 'function') {
+                    activeControllerTeleport.goto(viewer.cameraManager.camera);
+                }
+
                 camera.setPosition(viewer.cameraManager.camera.position);
                 app.renderNextFrame = true;
                 emitCameraUpdate(global);

@@ -56,6 +56,17 @@ class CameraManager {
     // holds the camera state
     camera = new Camera();
 
+    controllers: {
+        orbit: OrbitController;
+        fly: FlyController;
+        walk: WalkController;
+        anim: AnimController | null;
+    };
+
+    getController(cameraMode: CameraMode): CameraController {
+        return this.controllers[cameraMode] as CameraController;
+    }
+
     constructor(global: Global, bbox: BoundingBox, collision: Collision | null = null) {
         const { events, settings, state } = global;
 
@@ -96,6 +107,8 @@ class CameraManager {
             walk: new WalkController(),
             anim: animTrack ? new AnimController(animTrack) : null
         };
+
+        this.controllers = controllers;
 
         controllers.orbit.fov = resetCamera.fov;
         controllers.fly.fov = resetCamera.fov;
