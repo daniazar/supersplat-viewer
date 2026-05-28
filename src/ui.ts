@@ -1,6 +1,7 @@
 import { EventHandler } from 'playcanvas';
 
 import { version as appVersion } from '../package.json';
+import { localize } from './localization';
 import type { Annotation } from './settings';
 import { Tooltip } from './tooltip';
 import { Global } from './types';
@@ -247,7 +248,8 @@ const initUI = (global: Global) => {
         'showCollision', 'desktopShowCollisionHelp',
         'tooltip',
         'annotationNav', 'annotationPrev', 'annotationNext', 'annotationInfo', 'annotationNavTitle',
-        'viewerBranding', 'viewerTitle', 'appVersionLabel'
+        'viewerBranding', 'viewerTitle', 'appVersionLabel',
+        'xrModal', 'xrModalOk', 'xrModalCancel'
     ].reduce((acc: Record<string, HTMLElement>, id) => {
         acc[id] = document.getElementById(id);
         return acc;
@@ -391,8 +393,33 @@ const initUI = (global: Global) => {
     const arChanged = () => dom.arMode.classList[state.hasAR ? 'remove' : 'add']('hidden');
     const vrChanged = () => dom.vrMode.classList[state.hasVR ? 'remove' : 'add']('hidden');
 
-    dom.arMode.addEventListener('click', () => events.fire('startAR'));
-    dom.vrMode.addEventListener('click', () => events.fire('startVR'));
+    // XR sessions require a WebGL device. Under WebGPU, prompt the user to reload
+    // the viewer with the WebGL renderer before starting AR/VR. Use replace() so
+    // the renderer-switch reload doesn't add a back-button entry — important
+    // because the viewer often runs inside an iframe (e.g. superspl.at /scene).
+    const reloadWithWebgl = () => {
+        const reloadUrl = new URL(location.href);
+        reloadUrl.searchParams.set('webgl', '');
+        location.replace(reloadUrl.toString());
+    };
+
+    const showXrModal = () => dom.xrModal.classList.remove('hidden');
+    const hideXrModal = () => dom.xrModal.classList.add('hidden');
+
+    dom.xrModalOk.addEventListener('click', reloadWithWebgl);
+    dom.xrModalCancel.addEventListener('click', hideXrModal);
+    dom.xrModal.addEventListener('pointerdown', hideXrModal);
+
+    const handleXrClick = (type: 'AR' | 'VR') => {
+        if (global.renderer !== 'webgl') {
+            showXrModal();
+        } else {
+            events.fire(type === 'AR' ? 'startAR' : 'startVR');
+        }
+    };
+
+    dom.arMode.addEventListener('click', () => handleXrClick('AR'));
+    dom.vrMode.addEventListener('click', () => handleXrClick('VR'));
 
     events.on('hasAR:changed', arChanged);
     events.on('hasVR:changed', vrChanged);
@@ -619,11 +646,9 @@ const initUI = (global: Global) => {
 
     const getWalkHintText = () => {
         if (state.inputMode === 'desktop') {
-            return 'Click to walk. WASD to move freely.';
+            return localize('walk-hint.desktop');
         }
-        return state.gamingControls ?
-            'Use the joystick to move. Drag to look around. Tap to jump.' :
-            'Tap to walk. Drag to look around.';
+        return localize(state.gamingControls ? 'walk-hint.touch-gaming' : 'walk-hint.touch-tap');
     };
 
     events.on('cameraMode:changed', (value: string) => {
@@ -704,20 +729,20 @@ const initUI = (global: Global) => {
     // tooltips
     const tooltip = new Tooltip(dom.tooltip);
 
-    tooltip.register(dom.play, 'Play', 'top');
-    tooltip.register(dom.pause, 'Pause', 'top');
-    tooltip.register(dom.orbitCamera, 'Orbit Camera', 'top');
-    tooltip.register(dom.flyCamera, 'Fly Camera', 'top');
-    tooltip.register(dom.fpsCamera, 'Walk Mode', 'top');
-    tooltip.register(dom.reset, 'Reset Camera', 'bottom');
-    tooltip.register(dom.frame, 'Frame Scene', 'bottom');
-    tooltip.register(dom.showCollision, 'Show Collision', 'top');
-    tooltip.register(dom.settings, 'Settings', 'top');
-    tooltip.register(dom.info, 'Help', 'top');
-    tooltip.register(dom.arMode, 'Enter AR', 'top');
-    tooltip.register(dom.vrMode, 'Enter VR', 'top');
-    tooltip.register(dom.enterFullscreen, 'Fullscreen', 'top');
-    tooltip.register(dom.exitFullscreen, 'Fullscreen', 'top');
+    tooltip.register(dom.play, localize('tooltip.play'), 'top');
+    tooltip.register(dom.pause, localize('tooltip.pause'), 'top');
+    tooltip.register(dom.orbitCamera, localize('tooltip.orbit-camera'), 'top');
+    tooltip.register(dom.flyCamera, localize('tooltip.fly-camera'), 'top');
+    tooltip.register(dom.fpsCamera, localize('tooltip.walk-mode'), 'top');
+    tooltip.register(dom.reset, localize('tooltip.reset-camera'), 'bottom');
+    tooltip.register(dom.frame, localize('tooltip.frame-scene'), 'bottom');
+    tooltip.register(dom.showCollision, localize('tooltip.show-collision'), 'top');
+    tooltip.register(dom.settings, localize('tooltip.settings'), 'top');
+    tooltip.register(dom.info, localize('tooltip.help'), 'top');
+    tooltip.register(dom.arMode, localize('tooltip.enter-ar'), 'top');
+    tooltip.register(dom.vrMode, localize('tooltip.enter-vr'), 'top');
+    tooltip.register(dom.enterFullscreen, localize('tooltip.fullscreen'), 'top');
+    tooltip.register(dom.exitFullscreen, localize('tooltip.fullscreen'), 'top');
 
     const isThirdPartyEmbedded = () => {
         try {

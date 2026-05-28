@@ -1,5 +1,17 @@
 import { math, Quat, Vec3 } from 'playcanvas';
 
+import type { CameraFrame } from './camera';
+import { damp, mod } from '../core/math';
+
+/**
+ * Shared damping factor for controller smoothing (rotate / move / zoom) so
+ * orbit, fly, and walk feel the same. Used as `damp(damping, dt)` →
+ * `1 - damping^(dt*1000)`. Higher means smoother / more lag. Not used for
+ * physics-style velocity decay (e.g. walk's grounded/air velocity damping),
+ * which has different tuning needs.
+ */
+const DEFAULT_CONTROLLER_DAMPING = 0.95;
+
 const rotation = new Quat();
 
 /**
@@ -95,8 +107,52 @@ const setBasisOffset = (
     return out;
 };
 
+/**
+ * Lerp Euler angles toward a target using frame-rate-independent shortest-path
+ * interpolation. Yaw/roll on both `angles` and `target` are wrapped into
+ * `[0, 360)` so `lerpAngle`'s single-shift shortest-path stays valid after
+ * many full rotations (otherwise the camera takes the long way around). Pitch
+ * is left untouched since callers clamp it.
+ *
+ * @param angles - Current angles, mutated toward target.
+ * @param target - Target angles. Yaw/roll are wrapped in place to keep
+ * accumulated drift bounded across frames.
+ * @param damping - Damping factor in [0, 1]. Higher = smoother (1 = never moves).
+ * @param dt - Delta time in seconds.
+ * @returns The mutated angles.
+ */
+const dampAngles = (angles: Vec3, target: Vec3, damping: number, dt: number) => {
+    if (dt <= 0) {
+        return angles;
+    }
+    const t = damp(damping, dt);
+    angles.y = mod(angles.y, 360);
+    angles.z = mod(angles.z, 360);
+    target.y = mod(target.y, 360);
+    target.z = mod(target.z, 360);
+    angles.x = math.lerpAngle(angles.x, target.x, t);
+    angles.y = math.lerpAngle(angles.y, target.y, t);
+    angles.z = math.lerpAngle(angles.z, target.z, t);
+    return angles;
+};
+
+/**
+ * Discard any pending input deltas in the frame. `InputFrame.read()` zeros
+ * deltas as a side-effect of reading, so calling this prevents accumulated
+ * input from leaking into the next controller when a non-input-driven mode
+ * (e.g. animation) is active.
+ *
+ * @param frame - The camera frame whose deltas should be drained.
+ */
+const drainInputFrame = (frame: CameraFrame) => {
+    frame.read();
+};
+
 export {
+    DEFAULT_CONTROLLER_DAMPING,
     applyFrameRotation,
+    dampAngles,
+    drainInputFrame,
     setBasisOffset,
     setCameraBasis,
     setCameraForward,

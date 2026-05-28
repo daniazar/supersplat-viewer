@@ -9,7 +9,6 @@ import {
     Mat4,
     MiniStats,
     ShaderChunks,
-    type TextureHandler,
     PIXELFORMAT_RGBA16F,
     PIXELFORMAT_RGBA32F,
     TONEMAP_NONE,
@@ -34,6 +33,7 @@ import { Camera } from './cameras/camera';
 import type { Collision } from './collision';
 import { MeshCollision, VoxelCollision } from './collision';
 import { nearlyEquals } from './core/math';
+import { DebugPanel } from './debug';
 import { InputController } from './input-controller';
 import { MeshDebugOverlay } from './mesh-debug-overlay';
 import { NavCursor } from './nav-cursor';
@@ -164,6 +164,8 @@ class Viewer {
 
     navCursor: NavCursor | null = null;
 
+    debugPanel: DebugPanel | null = null;
+
     origChunks: {
         glsl: {
             gsplatOutputVS: string,
@@ -178,11 +180,8 @@ class Viewer {
     constructor(global: Global, gsplatLoad: Promise<Entity>, skyboxLoad: Promise<void> | undefined, collisionLoad: Promise<Collision> | undefined) {
         this.global = global;
 
-        const { app, settings, config, events, state, camera } = global;
+        const { app, settings, config, events, state, camera, renderer } = global;
         const { graphicsDevice } = app;
-
-        // enable anonymous CORS for image loading in safari
-        (app.loader.getHandler('texture') as TextureHandler).imgParser.crossOrigin = 'anonymous';
 
         // render skybox as plain equirect
         const glsl = ShaderChunks.get(graphicsDevice, 'glsl');
@@ -366,7 +365,7 @@ class Viewer {
 
             // Create collision debug overlay (voxel uses a compute shader, mesh
             // uses standard line rendering). The voxel path requires WebGPU.
-            if (collision instanceof VoxelCollision && config.renderer !== 'webgl') {
+            if (collision instanceof VoxelCollision && renderer !== 'webgl') {
                 this.voxelOverlay = new VoxelDebugOverlay(app, collision, camera);
                 this.voxelOverlay.mode = config.heatmap ? 'heatmap' : 'overlay';
                 state.hasCollisionOverlay = true;
@@ -392,6 +391,8 @@ class Viewer {
             if (!config.noui) {
                 this.navCursor = new NavCursor(app, camera, collision ?? null, events, state);
             }
+
+            this.debugPanel = new DebugPanel(global, this.cameraManager);
 
             const { instance } = gsplat;
             if (instance) {
@@ -506,7 +507,7 @@ class Viewer {
 
                         // debug colorize lods
                         gsplat.debug = config.colorize ? GSPLAT_DEBUG_LOD : GSPLAT_DEBUG_NONE;
-                        gsplat.renderer = rendererTable[config.renderer];
+                        gsplat.renderer = rendererTable[renderer];
 
                         // wait for the first valid frame to complete rendering
                         app.once('frameend', () => {
